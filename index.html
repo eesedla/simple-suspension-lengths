@@ -372,8 +372,15 @@
         tooltip.querySelector('.tt-detail').textContent  =
           `${count} ${plural} — ${share}% of all suspensions`;
 
-        tooltip.style.left = (e.clientX + 14) + 'px';
-        tooltip.style.top  = (e.clientY - 44) + 'px';
+        const TT_W   = 220; // matches max-width in CSS
+        const margin = 12;
+        const rightEdge = e.clientX + 14 + TT_W + margin;
+        const left = rightEdge > window.innerWidth
+          ? e.clientX - TT_W - 14
+          : e.clientX + 14;
+
+        tooltip.style.left = Math.max(margin, left) + 'px';
+        tooltip.style.top  = Math.max(8, e.clientY - 44) + 'px';
         tooltip.classList.add('visible');
       });
 
