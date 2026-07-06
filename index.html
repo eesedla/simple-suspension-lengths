@@ -19,7 +19,6 @@
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      min-height: 100vh;
       padding: 32px 16px;
     }
 
@@ -387,8 +386,19 @@
       });
     });
   </script>
-  <script src="https://pym.nprapps.com/pym.v1.min.js"></script>
-  <script>new pym.Child({ polling: 500 });</script>
+<script>
+/* Auto-height embed messaging (self-contained replacement for pym.js — NPR CDN retired) */
+(function () {
+  function postHeight() {
+    var el = document.querySelector('.viz-container');
+    var h = el ? Math.ceil(el.getBoundingClientRect().bottom + 32) : document.body.scrollHeight;
+    window.parent.postMessage({ type: 'embed-height', height: h }, '*');
+  }
+  window.addEventListener('load', postHeight);
+  window.addEventListener('resize', postHeight);
+  setInterval(postHeight, 500);
+})();
+</script>
 
 </body>
 </html>
