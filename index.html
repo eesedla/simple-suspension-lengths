@@ -156,6 +156,7 @@
     }
 
     .col-wrap {
+      position: relative;
       flex: 1;
       height: 100%;
       display: flex;
@@ -168,8 +169,24 @@
       border-radius: 2px 2px 0 0;
       min-height: 0;
       height: 0;
-      transition: height 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.15s;
+      transition: opacity 0.15s;
       cursor: default;
+    }
+
+    .col-total {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      margin-bottom: 4px;
+      text-align: center;
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      color: #404F54;
+      font-size: 11px;
+      opacity: 0;
+      pointer-events: none;
+      white-space: nowrap;
     }
 
     .col-fill:hover {
@@ -221,9 +238,9 @@
 
     <div class="viz-header">
       <div class="viz-kicker">Signal Cleveland</div>
-      <div class="viz-heading">How long are suspensions?</div>
+      <div class="viz-heading">Length of officer suspensions</div>
       <div class="viz-subheading">
-        Here's how 785 cases that resulted in a suspension break down by length.
+       The most common type of discipline is a suspension, but the length of suspensions varies widely. About half of suspensions were for four days or less, but a handful of officers were suspended for a full month.
       </div>
     </div>
 
@@ -240,30 +257,30 @@
 
   <script>
     const data = [
-      { days: 1,  count: 197 },
-      { days: 2,  count: 115 },
-      { days: 3,  count: 70  },
-      { days: 4,  count: 14  },
-      { days: 5,  count: 33  },
-      { days: 6,  count: 81  },
-      { days: 7,  count: 30  },
-      { days: 8,  count: 56  },
-      { days: 9,  count: 8   },
-      { days: 10, count: 71  },
-      { days: 11, count: 1   },
-      { days: 12, count: 5   },
-      { days: 13, count: 15  },
-      { days: 14, count: 8   },
-      { days: 15, count: 26  },
-      { days: 17, count: 3   },
-      { days: 18, count: 3   },
-      { days: 20, count: 21  },
-      { days: 21, count: 6   },
-      { days: 22, count: 1   },
-      { days: 23, count: 1   },
-      { days: 25, count: 10  },
-      { days: 27, count: 1   },
-      { days: 30, count: 9   },
+      { days: 1, count: 197 },
+      { days: 2, count: 114 },
+      { days: 3, count: 70 },
+      { days: 4, count: 14 },
+      { days: 5, count: 31 },
+      { days: 6, count: 81 },
+      { days: 7, count: 30 },
+      { days: 8, count: 56 },
+      { days: 9, count: 8 },
+      { days: 10, count: 71 },
+      { days: 11, count: 1 },
+      { days: 12, count: 5 },
+      { days: 13, count: 15 },
+      { days: 14, count: 8 },
+      { days: 15, count: 27 },
+      { days: 17, count: 3 },
+      { days: 18, count: 3 },
+      { days: 20, count: 21 },
+      { days: 21, count: 6 },
+      { days: 22, count: 1 },
+      { days: 23, count: 1 },
+      { days: 25, count: 12 },
+      { days: 27, count: 1 },
+      { days: 30, count: 9 },
     ];
 
     const BAR_COLOR = '#23685b';
@@ -304,15 +321,16 @@
     barsRow.className = 'bars-row';
 
     data.forEach(({ days, count }, i) => {
-      const hPct = (count / Y_MAX * 100).toFixed(2);
+      const hPct = count / Y_MAX * 100;
       const col  = document.createElement('div');
       col.className = 'col-wrap';
       col.innerHTML = `<div class="col-fill"
-        style="transition-delay:${i * 22}ms;"
-        data-target="${hPct}%"
+        data-target="${hPct}"
+        data-delay="${i * 22}"
         data-days="${days}"
         data-count="${count}">
-      </div>`;
+      </div>
+      <div class="col-total" data-target="${hPct}" data-delay="${i * 22}">${count}</div>`;
       barsRow.appendChild(col);
     });
 
@@ -338,18 +356,40 @@
     chartBody.appendChild(xTitle);
 
     // ── Scroll-triggered animation ───────────────────────────
-    const fills = document.querySelectorAll('.col-fill');
+    const fills  = document.querySelectorAll('.col-fill');
+    const totals = document.querySelectorAll('.col-total');
+    const DURATION = 650; // ms, matches the bars' old CSS transition length
+    const ease = t => 1 - Math.pow(1 - t, 3); // ease-out, similar feel to the old cubic-bezier
+
+    function animateColumns() {
+      const start = performance.now();
+      function frame(now) {
+        let stillAnimating = false;
+        fills.forEach((bar, i) => {
+          const delay = Number(bar.dataset.delay);
+          const target = Number(bar.dataset.target);
+          const total = totals[i];
+          const elapsed = now - start - delay;
+          const t = Math.min(Math.max(elapsed / DURATION, 0), 1);
+          if (elapsed < DURATION) stillAnimating = true;
+
+          bar.style.height = (target * ease(t)) + '%';
+          total.style.bottom = (target * ease(t)) + '%';
+
+          // Label fades in only over the back half of the bar's own
+          // growth, so the number settles in just as the bar finishes.
+          const fadeStart = 0.5, fadeEnd = 0.85;
+          const labelOpacity = Math.min(Math.max((t - fadeStart) / (fadeEnd - fadeStart), 0), 1);
+          total.style.opacity = labelOpacity;
+        });
+        if (stillAnimating) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
 
     const observer = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting) {
-        // Double rAF ensures the browser has painted height:0 before transitioning
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            fills.forEach(bar => {
-              bar.style.height = bar.dataset.target;
-            });
-          });
-        });
+        animateColumns();
         observer.disconnect();
       }
     }, { threshold: 0.1 });
